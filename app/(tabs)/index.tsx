@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, Alert } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import { Audio } from 'expo-av';
+import * as Notifications from 'expo-notifications';
 
 export default function MusicPlayer() {
   const [audioFiles, setAudioFiles] = useState<MediaLibrary.Asset[]>([]);
@@ -9,7 +10,30 @@ export default function MusicPlayer() {
   const [currentTrack, setCurrentTrack] = useState<MediaLibrary.Asset | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
+  // Configurer les notifications
+  useEffect(() => {
+    const configureNotifications = async () => {
+      await Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        }),
+      });
+
+      // Demander les permissions pour les notifications
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission refusée', 'Les notifications ne fonctionneront pas.');
+      }
+    };
+
+    configureNotifications();
+  }, []);
+
+  // Charger les fichiers audio
   useEffect(() => {
     (async () => {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -31,10 +55,11 @@ export default function MusicPlayer() {
     })();
   }, []);
 
+  // Jouer un fichier audio
   async function playAudio(track: MediaLibrary.Asset, index: number) {
-    if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
+    if (soundRef.current) {
+      await soundRef.current.stopAsync();
+      await soundRef.current.unloadAsync();
     }
 
     const { sound: newSound } = await Audio.Sound.createAsync(
@@ -42,23 +67,43 @@ export default function MusicPlayer() {
       { shouldPlay: true }
     );
 
+    soundRef.current = newSound;
     setSound(newSound);
     setCurrentTrack(track);
     setCurrentTrackIndex(index);
     setIsPlaying(true);
+
+    // Configurer la lecture en arrière-plan
+    await Audio.setAudioModeAsync({
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+
+    // Afficher une notification simple
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Lecture en cours',
+        body: track.filename,
+        data: { trackId: track.id },
+      },
+      trigger: null,
+    });
   }
 
+  // Lecture/pause
   async function togglePlayback() {
-    if (sound) {
+    if (soundRef.current) {
       if (isPlaying) {
-        await sound.pauseAsync();
+        await soundRef.current.pauseAsync();
       } else {
-        await sound.playAsync();
+        await soundRef.current.playAsync();
       }
       setIsPlaying(!isPlaying);
     }
   }
 
+  // Piste suivante
   async function playNext() {
     if (currentTrackIndex < audioFiles.length - 1) {
       const nextTrackIndex = currentTrackIndex + 1;
@@ -67,6 +112,7 @@ export default function MusicPlayer() {
     }
   }
 
+  // Piste précédente
   async function playPrevious() {
     if (currentTrackIndex > 0) {
       const previousTrackIndex = currentTrackIndex - 1;
@@ -74,6 +120,16 @@ export default function MusicPlayer() {
       await playAudio(previousTrack, previousTrackIndex);
     }
   }
+
+  // Gérer les interactions avec les notifications
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      // Rediriger l'utilisateur vers l'application
+      console.log('Notification cliquée:', response.notification.request.content.data.trackId);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -88,19 +144,33 @@ export default function MusicPlayer() {
         data={audioFiles}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
-          <TouchableOpacity style={styles.trackItem} onPress={() => playAudio(item, index)}>
+          <TouchableOpacity
+            style={[
+              styles.trackItem,
+              currentTrackIndex === index && styles.selectedTrackItem,
+            ]}
+            onPress={() => playAudio(item, index)}
+          >
             <Text>{item.filename}</Text>
           </TouchableOpacity>
         )}
       />
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.controlButton} onPress={playPrevious}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={playPrevious}
+          disabled={currentTrackIndex <= 0}
+        >
           <Text style={styles.controlButtonText}>Précédent</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlButton} onPress={togglePlayback}>
           <Text style={styles.controlButtonText}>{isPlaying ? 'Pause' : 'Lecture'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.controlButton} onPress={playNext}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={playNext}
+          disabled={currentTrackIndex >= audioFiles.length - 1}
+        >
           <Text style={styles.controlButtonText}>Suivant</Text>
         </TouchableOpacity>
       </View>
@@ -145,6 +215,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 5,
     marginBottom: 10,
+  },
+  selectedTrackItem: {
+    backgroundColor: '#e0f7fa', // Couleur de fond pour la piste sélectionnée
   },
   controls: {
     flexDirection: 'row',
