@@ -116,17 +116,19 @@ export default function MusicPlayer() {
     const asset = await MediaLibrary.getAssetInfoAsync(track);
     setMetadata(asset);
 
+    // Configurer la lecture en arrière-plan
     await Audio.setAudioModeAsync({
       staysActiveInBackground: true,
       shouldDuckAndroid: true,
       playThroughEarpieceAndroid: false,
     });
 
+    // Afficher une notification interactive
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: currentTrack ? currentTrack.filename : 'Aucune piste en cours',
+        title: track.filename, // Utiliser le titre de la piste actuelle
         body: 'Contrôlez la lecture depuis ici',
-        data: { trackId: currentTrack ? currentTrack.id : null },
+        data: { trackId: track.id },
         categoryIdentifier: 'musicControls',
       },
       trigger: null,
@@ -229,6 +231,23 @@ export default function MusicPlayer() {
     setIsInPlaylist(false);
     setAudioFiles(allAudioFiles); // Réinitialiser la liste des fichiers audio
   };
+
+  // Gérer les interactions avec les notifications
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const actionIdentifier = response.actionIdentifier;
+
+      if (actionIdentifier === 'previous') {
+        playPrevious();
+      } else if (actionIdentifier === 'play_pause') {
+        togglePlayback();
+      } else if (actionIdentifier === 'next') {
+        playNext();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [isPlaying]);
 
   return (
     <View style={styles.container}>
