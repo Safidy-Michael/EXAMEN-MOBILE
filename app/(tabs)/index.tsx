@@ -227,36 +227,36 @@ export default function MusicPlayer() {
           {metadata && metadata.localUri && metadata.artwork ? (
             <Image source={{ uri: metadata.artwork }} style={styles.currentTrackImage} />
           ) : (
-            <Ionicons name="musical-notes" size={150} color="#007bff" style={styles.currentTrackImage} />
+            <Ionicons name="musical-notes" size={150} color="#E91E63" style={styles.currentTrackImage} />
           )}
           <Text style={styles.currentTrackTitle}>{currentTrack.filename}</Text>
-          
+
           {/* Contrôles de lecture */}
           <View style={styles.controls}>
             <TouchableOpacity style={styles.controlButton} onPress={playPrevious} disabled={currentTrackIndex <= 0}>
-              <Ionicons name="play-skip-back" size={32} color={currentTrackIndex <= 0 ? '#ccc' : '#007bff'} />
+              <Ionicons name="play-skip-back" size={32} color={currentTrackIndex <= 0 ? '#ccc' : '#9C27B0'} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={togglePlayback}>
-              <Ionicons name={isPlaying ? 'pause' : 'play'} size={32} color="#007bff" />
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={32} color="#9C27B0" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={playNext} disabled={currentTrackIndex >= audioFiles.length - 1}>
-              <Ionicons name="play-skip-forward" size={32} color={currentTrackIndex >= audioFiles.length - 1 ? '#ccc' : '#007bff'} />
+              <Ionicons name="play-skip-forward" size={32} color={currentTrackIndex >= audioFiles.length - 1 ? '#ccc' : '#9C27B0'} />
             </TouchableOpacity>
           </View>
 
           {/* Boutons d'action */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={styles.actionButton} 
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => {
                 setSelectedTrackForPlaylist(currentTrack);
                 setShowAddToPlaylistModal(true);
               }}
             >
-              <MaterialIcons name="playlist-add" size={32} color="#007bff" />
+              <MaterialIcons name="playlist-add" size={32} color="#9C27B0" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={goBackToAllTracks}>
-              <Ionicons name="list" size={32} color="#007bff" />
+              <Ionicons name="list" size={32} color="#9C27B0" />
             </TouchableOpacity>
           </View>
         </View>
@@ -267,20 +267,20 @@ export default function MusicPlayer() {
         <>
           <View style={styles.filterIconsContainer}>
             <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('title')}>
-              <MaterialIcons name="title" size={24} color={filterBy === 'title' ? '#007bff' : '#ccc'} />
-              <Text style={[styles.filterIconText, { color: filterBy === 'title' ? '#007bff' : '#ccc' }]}>Titre</Text>
+              <MaterialIcons name="title" size={24} color={filterBy === 'title' ? '#9C27B0' : '#ccc'} />
+              <Text style={[styles.filterIconText, { color: filterBy === 'title' ? '#9C27B0' : '#ccc' }]}>Titre</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('artist')}>
-              <MaterialIcons name="person" size={24} color={filterBy === 'artist' ? '#007bff' : '#ccc'} />
-              <Text style={[styles.filterIconText, { color: filterBy === 'artist' ? '#007bff' : '#ccc' }]}>Artiste</Text>
+              <MaterialIcons name="person" size={24} color={filterBy === 'artist' ? '#9C27B0' : '#ccc'} />
+              <Text style={[styles.filterIconText, { color: filterBy === 'artist' ? '#9C27B0' : '#ccc' }]}>Artiste</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('album')}>
-              <MaterialIcons name="album" size={24} color={filterBy === 'album' ? '#007bff' : '#ccc'} />
-              <Text style={[styles.filterIconText, { color: filterBy === 'album' ? '#007bff' : '#ccc' }]}>Album</Text>
+              <MaterialIcons name="album" size={24} color={filterBy === 'album' ? '#9C27B0' : '#ccc'} />
+              <Text style={[styles.filterIconText, { color: filterBy === 'album' ? '#9C27B0' : '#ccc' }]}>Album</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.filterIcon} onPress={() => setShowPlaylistsList(!showPlaylistsList)}>
-              <MaterialIcons name="playlist-play" size={24} color="#007bff" />
-              <Text style={[styles.filterIconText, { color: '#007bff' }]}>Playlists</Text>
+              <MaterialIcons name="playlist-play" size={24} color="#9C27B0" />
+              <Text style={[styles.filterIconText, { color: '#9C27B0' }]}>Playlists</Text>
             </TouchableOpacity>
           </View>
 
@@ -305,7 +305,7 @@ export default function MusicPlayer() {
 
           {isInPlaylist && (
             <TouchableOpacity style={styles.backButton} onPress={goBackToAllTracks}>
-              <Ionicons name="arrow-back" size={24} color="#007bff" />
+              <Ionicons name="arrow-back" size={24} color="#9C27B0" />
               <Text style={styles.backButtonText}>Retour à la liste complète</Text>
             </TouchableOpacity>
           )}
@@ -386,10 +386,10 @@ export default function MusicPlayer() {
                 setMetadata(asset); // Mettre à jour les métadonnées pour la piste sélectionnée
               }}
             >
-              <Ionicons name="musical-notes" size={32} color="#007bff" style={styles.trackIcon} />
+              <Ionicons name="musical-notes" size={32} color="#9C27B0" style={styles.trackIcon} />
               <Text style={styles.trackText}>{item.filename}</Text>
               <TouchableOpacity onPress={() => showTrackOptionsMenu(item)}>
-                <Ionicons name="ellipsis-vertical" size={24} color="#007bff" />
+                <Ionicons name="ellipsis-vertical" size={24} color="#9C27B0" />
               </TouchableOpacity>
             </TouchableOpacity>
           )}
@@ -403,14 +403,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
-    color: '#333',
+    color: '#9C27B0',
   },
   currentTrackContainer: {
     flex: 1,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   currentTrackTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#9C27B0',
     textAlign: 'center',
     marginVertical: 20,
     paddingHorizontal: 10,
@@ -451,13 +451,14 @@ const styles = StyleSheet.create({
   filterIconText: {
     fontSize: 12,
     marginTop: 5,
+    color: '#9C27B0',
   },
   playlistsList: {
     marginBottom: 20,
   },
   playlistItem: {
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     marginBottom: 10,
     borderRadius: 5,
   },
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     marginLeft: 10,
-    color: '#007bff',
+    color: '#9C27B0',
   },
   modalContainer: {
     flex: 1,
@@ -486,10 +487,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 20,
+    color: '#9C27B0',
   },
   modalButton: {
     padding: 15,
-    backgroundColor: '#007bff',
+    backgroundColor: '#9C27B0',
     borderRadius: 10,
     marginBottom: 10,
     width: '80%',
@@ -505,12 +507,12 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderRadius: 5,
     marginBottom: 10,
   },
   selectedTrackItem: {
-    backgroundColor: '#e0f7fa',
+    backgroundColor: '#E1BEE7',
   },
   trackIcon: {
     width: 32,
@@ -528,7 +530,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '80%',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderRadius: 10,
     marginBottom: 20,
   },
