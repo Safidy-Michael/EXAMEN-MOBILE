@@ -6,8 +6,8 @@ import * as Notifications from 'expo-notifications';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 export default function MusicPlayer() {
-  const [allAudioFiles, setAllAudioFiles] = useState<MediaLibrary.Asset[]>([]); // Liste complète des fichiers audio
-  const [audioFiles, setAudioFiles] = useState<MediaLibrary.Asset[]>([]); // Fichiers audio affichés (liste complète ou playlist)
+  const [allAudioFiles, setAllAudioFiles] = useState<MediaLibrary.Asset[]>([]);
+  const [audioFiles, setAudioFiles] = useState<MediaLibrary.Asset[]>([]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [currentTrack, setCurrentTrack] = useState<MediaLibrary.Asset | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -23,10 +23,11 @@ export default function MusicPlayer() {
   const [showTrackOptions, setShowTrackOptions] = useState<boolean>(false);
   const [showPlaylistsList, setShowPlaylistsList] = useState<boolean>(false);
   const [isInPlaylist, setIsInPlaylist] = useState<boolean>(false);
-  const [currentPlaylistName, setCurrentPlaylistName] = useState<string>(''); // Nom de la playlist actuelle
+  const [currentPlaylistName, setCurrentPlaylistName] = useState<string>('');
   const soundRef = useRef<Audio.Sound | null>(null);
+  const notificationIdRef = useRef<string | null>(null); // Référence pour stocker l'ID de la notification
 
-  // Configurer les notifications interactives avec des icônes
+  // Configurer les notifications interactives
   useEffect(() => {
     const configureNotifications = async () => {
       await Notifications.setNotificationHandler({
@@ -40,24 +41,18 @@ export default function MusicPlayer() {
       await Notifications.setNotificationCategoryAsync('musicControls', [
         {
           identifier: 'previous',
-          buttonTitle: '◀️', // Icône précédent
-          options: {
-            opensAppToForeground: false,
-          },
+          buttonTitle: '◀️',
+          options: { opensAppToForeground: false },
         },
         {
           identifier: 'play_pause',
-          buttonTitle: isPlaying ? '⏸️' : '▶️', // Icône play/pause
-          options: {
-            opensAppToForeground: false,
-          },
+          buttonTitle: isPlaying ? '⏸️' : '▶️',
+          options: { opensAppToForeground: false },
         },
         {
           identifier: 'next',
-          buttonTitle: '▶️▶️', // Icône suivant
-          options: {
-            opensAppToForeground: false,
-          },
+          buttonTitle: '▶️▶️',
+          options: { opensAppToForeground: false },
         },
       ]);
 
@@ -87,13 +82,39 @@ export default function MusicPlayer() {
           });
           allAudioFiles = [...allAudioFiles, ...media.assets];
         }
-        const filteredAudioFiles = allAudioFiles.filter(asset => asset.filename.endsWith('.mp3') || asset.filename.endsWith('.wav') || asset.filename.endsWith('.aac') || asset.filename.endsWith('.flac'));
-        setAllAudioFiles(filteredAudioFiles); // Stocker la liste complète des fichiers audio
-        setAudioFiles(filteredAudioFiles); // Afficher la liste complète par défaut
+        const filteredAudioFiles = allAudioFiles.filter(asset => 
+          asset.filename.endsWith('.mp3') || 
+          asset.filename.endsWith('.wav') || 
+          asset.filename.endsWith('.aac') || 
+          asset.filename.endsWith('.flac')
+        );
+        setAllAudioFiles(filteredAudioFiles);
+        setAudioFiles(filteredAudioFiles);
         setIsLoading(false);
       }
     })();
   }, []);
+
+  // Mettre à jour la notification existante au lieu d'en créer une nouvelle
+  async function updateNotification(track: MediaLibrary.Asset) {
+    const content = {
+      title: track.filename,
+      body: 'Contrôlez la lecture depuis ici',
+      data: { trackId: track.id },
+      categoryIdentifier: 'musicControls',
+    };
+
+    if (notificationIdRef.current) {
+      // Mettre à jour la notification existante
+      await Notifications.dismissNotificationAsync(notificationIdRef.current);
+    }
+
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content,
+      trigger: null,
+    });
+    notificationIdRef.current = notificationId;
+  }
 
   // Jouer un fichier audio
   async function playAudio(track: MediaLibrary.Asset, index: number) {
@@ -116,26 +137,16 @@ export default function MusicPlayer() {
     const asset = await MediaLibrary.getAssetInfoAsync(track);
     setMetadata(asset);
 
-    // Configurer la lecture en arrière-plan
     await Audio.setAudioModeAsync({
       staysActiveInBackground: true,
       shouldDuckAndroid: true,
       playThroughEarpieceAndroid: false,
     });
 
-    // Afficher une notification interactive
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: track.filename, // Utiliser le titre de la piste actuelle
-        body: 'Contrôlez la lecture depuis ici',
-        data: { trackId: track.id },
-        categoryIdentifier: 'musicControls',
-      },
-      trigger: null,
-    });
+    // Mettre à jour la notification au lieu d'en créer une nouvelle
+    await updateNotification(track);
   }
 
-  // Lecture/pause
   async function togglePlayback() {
     if (soundRef.current) {
       if (isPlaying) {
@@ -144,10 +155,14 @@ export default function MusicPlayer() {
         await soundRef.current.playAsync();
       }
       setIsPlaying(!isPlaying);
+      
+      // Mettre à jour la notification pour refléter l'état play/pause
+      if (currentTrack) {
+        await updateNotification(currentTrack);
+      }
     }
   }
 
-  // Piste suivante
   async function playNext() {
     if (currentTrackIndex < audioFiles.length - 1) {
       const nextTrackIndex = currentTrackIndex + 1;
@@ -156,7 +171,6 @@ export default function MusicPlayer() {
     }
   }
 
-  // Piste précédente
   async function playPrevious() {
     if (currentTrackIndex > 0) {
       const previousTrackIndex = currentTrackIndex - 1;
@@ -165,7 +179,28 @@ export default function MusicPlayer() {
     }
   }
 
-  // Trier les pistes
+  // Gérer les interactions avec les notifications
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const actionIdentifier = response.actionIdentifier;
+
+      switch (actionIdentifier) {
+        case 'previous':
+          playPrevious();
+          break;
+        case 'play_pause':
+          togglePlayback();
+          break;
+        case 'next':
+          playNext();
+          break;
+      }
+    });
+
+    return () => subscription.remove();
+  }, [currentTrackIndex, audioFiles, isPlaying]);
+
+  // Les autres fonctions (sortTracks, createPlaylist, etc.) restent inchangées
   const sortTracks = (tracks: MediaLibrary.Asset[], filter: string) => {
     switch (filter) {
       case 'title':
@@ -179,7 +214,6 @@ export default function MusicPlayer() {
     }
   };
 
-  // Créer une nouvelle playlist
   const createPlaylist = () => {
     if (newPlaylistName.trim() === '') {
       Alert.alert('Erreur', 'Le nom de la playlist ne peut pas être vide.');
@@ -190,7 +224,6 @@ export default function MusicPlayer() {
     setShowPlaylistModal(false);
   };
 
-  // Ajouter une musique à une playlist
   const addToPlaylist = (playlistName: string, track: MediaLibrary.Asset) => {
     const updatedPlaylists = playlists.map(playlist => {
       if (playlist.name === playlistName) {
@@ -202,7 +235,6 @@ export default function MusicPlayer() {
     setShowAddToPlaylistModal(false);
   };
 
-  // Supprimer une musique d'une playlist
   const removeFromPlaylist = (playlistName: string, trackId: string) => {
     const updatedPlaylists = playlists.map(playlist => {
       if (playlist.name === playlistName) {
@@ -211,81 +243,46 @@ export default function MusicPlayer() {
       return playlist;
     });
     setPlaylists(updatedPlaylists);
-    setShowTrackOptions(false); // Fermer le menu des options
+    setShowTrackOptions(false);
 
-    // Mettre à jour la liste affichée si la playlist actuelle est celle modifiée
     if (currentPlaylistName === playlistName) {
       const updatedTracks = updatedPlaylists.find(playlist => playlist.name === playlistName)?.tracks || [];
       setAudioFiles(updatedTracks);
     }
   };
 
-  // Afficher les options pour une piste
   const showTrackOptionsMenu = (track: MediaLibrary.Asset) => {
     setSelectedTrackForPlaylist(track);
     setShowTrackOptions(true);
   };
 
-  // Revenir à la liste complète des fichiers audio
   const goBackToAllTracks = () => {
     setIsInPlaylist(false);
-    setAudioFiles(allAudioFiles); // Réinitialiser la liste des fichiers audio
+    setAudioFiles(allAudioFiles);
   };
 
-  // Gérer les interactions avec les notifications
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const actionIdentifier = response.actionIdentifier;
-
-      if (actionIdentifier === 'previous') {
-        playPrevious();
-      } else if (actionIdentifier === 'play_pause') {
-        togglePlayback();
-      } else if (actionIdentifier === 'next') {
-        playNext();
-      }
-    });
-
-    return () => subscription.remove();
-  }, [isPlaying]);
-
+  // Le rendu JSX reste identique
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Lecteur de Musique</Text>
-
-      {/* Filtres et playlists */}
       <View style={styles.filterIconsContainer}>
-        <TouchableOpacity
-          style={styles.filterIcon}
-          onPress={() => setFilterBy('title')}
-        >
+        <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('title')}>
           <MaterialIcons name="title" size={24} color={filterBy === 'title' ? '#007bff' : '#ccc'} />
           <Text style={[styles.filterIconText, { color: filterBy === 'title' ? '#007bff' : '#ccc' }]}>Titre</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.filterIcon}
-          onPress={() => setFilterBy('artist')}
-        >
+        <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('artist')}>
           <MaterialIcons name="person" size={24} color={filterBy === 'artist' ? '#007bff' : '#ccc'} />
           <Text style={[styles.filterIconText, { color: filterBy === 'artist' ? '#007bff' : '#ccc' }]}>Artiste</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.filterIcon}
-          onPress={() => setFilterBy('album')}
-        >
+        <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterBy('album')}>
           <MaterialIcons name="album" size={24} color={filterBy === 'album' ? '#007bff' : '#ccc'} />
           <Text style={[styles.filterIconText, { color: filterBy === 'album' ? '#007bff' : '#ccc' }]}>Album</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.filterIcon}
-          onPress={() => setShowPlaylistsList(!showPlaylistsList)}
-        >
+        <TouchableOpacity style={styles.filterIcon} onPress={() => setShowPlaylistsList(!showPlaylistsList)}>
           <MaterialIcons name="playlist-play" size={24} color="#007bff" />
           <Text style={[styles.filterIconText, { color: '#007bff' }]}>Playlists</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Afficher la liste des playlists */}
       {showPlaylistsList && (
         <View style={styles.playlistsList}>
           {playlists.map((playlist, index) => (
@@ -294,8 +291,8 @@ export default function MusicPlayer() {
               style={styles.playlistItem}
               onPress={() => {
                 setAudioFiles(playlist.tracks);
-                setIsInPlaylist(true); // Activer le mode playlist
-                setCurrentPlaylistName(playlist.name); // Enregistrer le nom de la playlist actuelle
+                setIsInPlaylist(true);
+                setCurrentPlaylistName(playlist.name);
                 setShowPlaylistsList(false);
               }}
             >
@@ -304,16 +301,12 @@ export default function MusicPlayer() {
           ))}
         </View>
       )}
-
-      {/* Bouton "Retour" pour revenir à la liste complète */}
       {isInPlaylist && (
         <TouchableOpacity style={styles.backButton} onPress={goBackToAllTracks}>
           <Ionicons name="arrow-back" size={24} color="#007bff" />
           <Text style={styles.backButtonText}>Retour à la liste complète</Text>
         </TouchableOpacity>
       )}
-
-      {/* Modal pour créer une playlist */}
       <Modal visible={showPlaylistModal} transparent={true} animationType="slide">
         <View style={styles.modalContainer}>
           <TextInput
@@ -330,8 +323,6 @@ export default function MusicPlayer() {
           </TouchableOpacity>
         </View>
       </Modal>
-
-      {/* Modal pour ajouter une musique à une playlist */}
       <Modal visible={showAddToPlaylistModal} transparent={true} animationType="slide">
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>Ajouter à une playlist</Text>
@@ -355,8 +346,6 @@ export default function MusicPlayer() {
           </TouchableOpacity>
         </View>
       </Modal>
-
-      {/* Liste des fichiers audio */}
       <FlatList
         data={sortTracks(audioFiles, filterBy)}
         keyExtractor={(item) => item.id}
@@ -380,8 +369,6 @@ export default function MusicPlayer() {
           </TouchableOpacity>
         )}
       />
-
-      {/* Modal pour les options de piste */}
       <Modal visible={showTrackOptions} transparent={true} animationType="slide">
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>Options</Text>
@@ -399,8 +386,6 @@ export default function MusicPlayer() {
           </TouchableOpacity>
         </View>
       </Modal>
-
-      {/* Contrôles de lecture */}
       <View style={styles.controls}>
         <TouchableOpacity
           style={styles.controlButton}
